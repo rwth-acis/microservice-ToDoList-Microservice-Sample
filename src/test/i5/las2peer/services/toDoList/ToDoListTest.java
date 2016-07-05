@@ -1,7 +1,6 @@
 package i5.las2peer.services.toDoList;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -24,6 +23,7 @@ import i5.las2peer.testing.MockAgentFactory;
 import i5.las2peer.webConnector.WebConnector;
 import i5.las2peer.webConnector.client.ClientResponse;
 import i5.las2peer.webConnector.client.MiniClient;
+
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
@@ -65,12 +65,18 @@ public class ToDoListTest {
    */
   @BeforeClass
   public static void startServer() throws Exception {
-
+/*
     // start node
     node = LocalNode.newNode();
     node.storeAgent(MockAgentFactory.getAdam());
-    node.launch();
+    node.launch();*/
+	  node = LocalNode.newNode();
+	    UserAgent agent = MockAgentFactory.getAdam();
+	    agent.unlockPrivateKey(testPass);  // changed variable
+	    node.storeAgent(agent);
+	    node.launch();
 
+	  
     ServiceAgent testService = ServiceAgent.createServiceAgent(testTemplateService, "a pass");
     testService.unlockPrivateKey("a pass");
 
@@ -102,18 +108,22 @@ public class ToDoListTest {
    * Test for the postList method.
    * 
    */
+  
   @Test
   public void testpostList() {
     MiniClient c = new MiniClient();
     c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
     try {
-      String listContent = "initialized";
+      String listContent = "caption_init";
+      listContent += ';' + "message_init"; 
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
-      ClientResponse result = c.sendRequest("POST", mainPath + "/ ", listContent,
-        MediaType.TEXT_PLAIN, MediaType.TEXT_PLAIN, new Pair[] {});
-      assertTrue(true); // change here
-      System.out.println("Result of 'testpostList': " + result.getResponse().trim());
+      ClientResponse result = c.sendRequest("POST", mainPath + "/ ", listContent ,
+        MediaType.TEXT_PLAIN, MediaType.TEXT_PLAIN, new Pair[] {});    
+      assertEquals("Data Sent!", result.getResponse().trim());
+    	      System.out.println("Result of 'testpostList': " + result.getResponse().trim());
+        
+      
     } catch (Exception e) {
       e.printStackTrace();
       fail("Exception: " + e);
@@ -121,6 +131,30 @@ public class ToDoListTest {
   }
 
 
+  /**
+   * 
+   * Test for the getData method.
+   * 
+   */
+  
+  @Test
+  public void testgetData() {
+    MiniClient c = new MiniClient();
+    c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+    try {
+      String DataContent = "initialized";
+      c.setLogin(Long.toString(testAgent.getId()), testPass);
+      @SuppressWarnings("unchecked")
+      ClientResponse result = c.sendRequest("GET", mainPath + "/ ", DataContent,
+        MediaType.TEXT_PLAIN, MediaType.TEXT_PLAIN, new Pair[] {});
+      assertTrue(true); // change here
+      System.out.println("Result of 'testgetData': " + result.getResponse().trim());
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+  }
+  
   /**
    * 
    * Test for the deleteList method.
@@ -136,14 +170,41 @@ public class ToDoListTest {
       @SuppressWarnings("unchecked")
       ClientResponse result = c.sendRequest("DELETE", mainPath + "/", DeleteContent,
         MediaType.TEXT_PLAIN, MediaType.TEXT_PLAIN, new Pair[] {});
-      assertTrue(true); // change here
+      assertEquals("Data Deleted!", result.getResponse().trim());
       System.out.println("Result of 'testdeleteList': " + result.getResponse().trim());
     } catch (Exception e) {
       e.printStackTrace();
       fail("Exception: " + e);
     }
   }
-
+  /**
+   * 
+   * Test for the updateData method.
+   * 
+   */
+  /*
+  
+  @Test
+  public void testupdateData() {
+    MiniClient c = new MiniClient();
+    c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+    try {
+      String UpdateContent = "caption_update";
+      UpdateContent +=  ';' + "message_update" ;
+      UpdateContent +=  ';' + "76" ;
+      c.setLogin(Long.toString(testAgent.getId()), testPass);
+      @SuppressWarnings("unchecked")
+      ClientResponse result = c.sendRequest("PUT", mainPath + "/{id}", UpdateContent,
+        MediaType.TEXT_PLAIN, MediaType.TEXT_PLAIN, new Pair[] {});
+      assertEquals("Message Updated!", result.getResponse().trim());
+      System.out.println("Result of 'testupdateData': " + result.getResponse().trim());
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+  }
+  
+  */
 
   /**
    * 

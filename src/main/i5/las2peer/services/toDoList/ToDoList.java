@@ -1,8 +1,13 @@
 package i5.las2peer.services.toDoList;
 
 import java.net.HttpURLConnection;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import javax.ws.rs.DELETE;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -12,6 +17,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.Consumes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.sun.javafx.collections.MappingChange.Map;
 
 import i5.las2peer.api.Service;
 import i5.las2peer.restMapper.HttpResponse;
@@ -31,6 +37,10 @@ import io.swagger.annotations.SwaggerDefinition;
 import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
+
+
+
+//import org.apache.commons.lang3.ArrayUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
@@ -91,7 +101,7 @@ public class ToDoList extends Service {
    * 
    */
   @POST
-  @Path("/ ")
+  @Path("/")
   @Produces(MediaType.TEXT_PLAIN)
   @Consumes(MediaType.TEXT_PLAIN)
   @ApiResponses(value = {
@@ -99,25 +109,195 @@ public class ToDoList extends Service {
        @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
   })
   @ApiOperation(value = "postList", notes = "")
-  public HttpResponse postList(@ContentParam String listContent) {
-    // ListSent
-    boolean ListSent_condition = true;
-    if(ListSent_condition) {
-      String listCreated = "Some String";
-      HttpResponse ListSent = new HttpResponse(listCreated, HttpURLConnection.HTTP_CREATED);
-      return ListSent;
-    }
-    // internalError
-    boolean internalError_condition = true;
-    if(internalError_condition) {
-      String eror = "Some String";
-      HttpResponse internalError = new HttpResponse(eror, HttpURLConnection.HTTP_INTERNAL_ERROR);
-      return internalError;
-    }
-    return null;
+  public HttpResponse postList( @ContentParam String listContent) {
+	  {		
+		
+		  String insertQuery = "";
+		 		    Connection conn = null;
+		    PreparedStatement stmnt = null;
+		    // split the message by semicolon since data belongs to two different 
+		    // create two strings: caption and message
+		    String[] str_array = listContent.split(";");
+			  String caption = str_array[0]; 
+			  String message = str_array[1];
+		    		    try {
+		      conn = dbm.getConnection();
+		      // formulate query statement for message input
+		      insertQuery = "INSERT INTO list (ListContent,MessageContent)" + "VALUES ('" + caption + "' , '" + message + "')";
+		      stmnt = conn.prepareStatement(insertQuery);
+		      // execute query 
+		      stmnt.executeUpdate();
+		      // message displayed for successful response
+		      String listCreated = "Data Sent!";
+		      HttpResponse ListSent = new HttpResponse(listCreated, HttpURLConnection.HTTP_CREATED);
+		      return ListSent;
+		    } catch (Exception e) {
+		      e.printStackTrace();
+		      // InternalError
+		      String eror = "Problems: " + e.getMessage();
+		      HttpResponse internalError = new HttpResponse(eror, HttpURLConnection.HTTP_INTERNAL_ERROR);
+		      return internalError;
+		    } finally {
+		      // free resources
+		      try {
+		        stmnt.close();
+		        conn.close();
+		      } catch (Exception e) {
+		        e.printStackTrace();
+		        // InternalError
+		        // message displayed in case of errors
+		        String eror = "Problems: " + e.getMessage();
+		        HttpResponse internalError = new HttpResponse(eror, HttpURLConnection.HTTP_INTERNAL_ERROR);
+		        return internalError;
+		      }
+		    }
+		  }
+
+	  
   }
+  
+ 
+  /**
+   * 
+   * getData
+   * 
+   * @param DataContent a String
+   * 
+   * @return HttpResponse
+   * 
+   */
+  @GET
+  @Path("/ ")
+  @Produces(MediaType.TEXT_PLAIN)
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ApiResponses(value = {
+		  @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "listRetrieved"),
+	       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
+  })
+  @ApiOperation(value = "getData", notes = "")
+  public HttpResponse getData(@ContentParam String DataContent) {
+	  {
+		   String getQuery = "";
+		    Connection conn = null;
+		    PreparedStatement stmnt = null;
+		    try {
+		    	
+		      conn = dbm.getConnection();
+		      // formulate query statement for retrieving data from table list in backend
+		      getQuery = "SELECT id, ListContent, MessageContent From list ; "; 
+		      stmnt = conn.prepareStatement(getQuery);
+		      // execute query
+		      ResultSet rs = stmnt.executeQuery();
+		      // after retrieving all the data, it should be cleaned
+		      // seperate all data according to id
+		      // structure all the data properly according to caption and message
+		      rs.last();
+		      int numrows = rs.getRow(); 
+		      rs.beforeFirst();
+		      int[] id = new int[numrows];
+		      String[] ListContent = new String[numrows];
+		      String[] MessageContent = new String[numrows];
+		    	int i = 0; 
+		 		   		     while(rs.next()){	
+		 		   		    	id[i] = rs.getInt("id");
+		    	    ListContent[i] = rs.getString("ListContent");
+		    	    MessageContent[i] = rs.getString("MessageContent");
+		    	     	    i++;
+		   		     } 		  	
+		 		 
+		     rs.close();
+		    String ID =  	Arrays.toString(id);
+		     String AllData =  	Arrays.toString(ListContent);
+		     String Message =  	Arrays.toString(MessageContent);
+		     ID = ID.substring(1, ID.length() - 1);
+		     AllData = AllData.substring(1, AllData.length() - 1);
+		     Message = Message.substring(1, Message.length() - 1);
+             // create a string where all the data is stored
+		     // comma-seperated string to seperate data for further purposes
+		     String allTogether = ID + "," + AllData + "," + Message ;
 
+		     // retrieve all data
+		     HttpResponse listRetrieved = new HttpResponse( allTogether, HttpURLConnection.HTTP_OK);
+		      return listRetrieved;
+		      
+		    } catch (Exception e) {
+		      e.printStackTrace();
+		      // InternalError
+		      // output error message
+		      String error = "Problems: " + e.getMessage();
+		      HttpResponse internalError = new HttpResponse(error, HttpURLConnection.HTTP_INTERNAL_ERROR);
+		      return internalError;
+		    } 
+		  }
 
+	  
+  }
+ 
+  /**
+   * 
+   * updateData
+   * 
+   * @param UpdateContent a String
+   * 
+   * @param id a String
+   * 
+   * @return HttpResponse
+   * 
+   */
+  
+  @PUT
+  @Path("/{id}")
+  @Produces(MediaType.TEXT_PLAIN)
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ApiResponses(value = {
+		  @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "listUpdated"),
+	       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
+  })
+  @ApiOperation(value = "updateData", notes = "")
+  public HttpResponse updateData(@PathParam("id") String id, @ContentParam String UpdateContent ) {
+	  {   
+		  
+		  // seperate the available data in different categories by semicolon-seperated 
+		  String[] str_array = UpdateContent.split(";");
+		  String inputMsg = str_array[0]; 
+		  String message = str_array[1]; 
+		  String DeleteID = str_array[2];
+		  // create connection
+		    Connection conn = null;
+		    PreparedStatement stmnt = null;
+		    PreparedStatement stmnt1 = null;
+
+		    try {
+		      conn = dbm.getConnection();
+		      			  
+				   String getQuery = "";
+				   String Query = "";
+
+			 // formulate query statement for updating caption and message based on id
+		      getQuery = "Update list set ListContent = '" + inputMsg + "' where id = '"+ DeleteID + "';";
+		      Query = "Update list set MessageContent = '" + message + "' where id = '"+ DeleteID + "';";
+              // execute query
+		      stmnt = conn.prepareStatement(getQuery);
+		       stmnt.executeUpdate();		   		   
+		       stmnt1 = conn.prepareStatement(Query);
+		       stmnt1.executeUpdate();	 
+		       // output message in case of successful update
+		      String updateList = "Message Updated!";
+		      HttpResponse listUpdated = new HttpResponse(updateList, HttpURLConnection.HTTP_OK);
+		      return listUpdated;
+		      
+		    } catch (Exception e) {
+		      e.printStackTrace();
+		      // InternalError
+		      // output message in case of errors
+		      String error = "Problems: " + e.getMessage();
+		      HttpResponse internalError = new HttpResponse(error, HttpURLConnection.HTTP_INTERNAL_ERROR);
+		      return internalError;
+		    } 
+		  }
+
+	  
+  }
   /**
    * 
    * deleteList
@@ -127,6 +307,7 @@ public class ToDoList extends Service {
    * @return HttpResponse
    * 
    */
+  
   @DELETE
   @Path("/")
   @Produces(MediaType.TEXT_PLAIN)
@@ -137,30 +318,48 @@ public class ToDoList extends Service {
        @ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "BadList")
   })
   @ApiOperation(value = "deleteList", notes = "")
-  public HttpResponse deleteList(@ContentParam String DeleteContent) {
-    // ListNotFound
-    boolean ListNotFound_condition = true;
-    if(ListNotFound_condition) {
-      String listNotFound = "Some String";
-      HttpResponse ListNotFound = new HttpResponse(listNotFound, HttpURLConnection.HTTP_NOT_FOUND);
-      return ListNotFound;
-    }
-    // ListDeleted
-    boolean ListDeleted_condition = true;
-    if(ListDeleted_condition) {
-      String listRemoved = "Some String";
-      HttpResponse ListDeleted = new HttpResponse(listRemoved, HttpURLConnection.HTTP_OK);
-      return ListDeleted;
-    }
-    // BadList
-    boolean BadList_condition = true;
-    if(BadList_condition) {
-      String badList = "Some String";
-      HttpResponse BadList = new HttpResponse(badList, HttpURLConnection.HTTP_BAD_REQUEST);
-      return BadList;
-    }
-    return null;
-  }
+  public HttpResponse deleteList(@ContentParam String DeleteContent) 
+	  {
+		   String deleteQuery = "";
+			  // create connection
+		    Connection conn = null;
+		    PreparedStatement stmnt = null;
+		    try {
+				  // create connection
+		      conn = dbm.getConnection();
+				 // formulate query statement for deleting caption and messages based on id
+		      deleteQuery = "Delete From list Where id = '"+ DeleteContent + "';";
+		      stmnt = conn.prepareStatement(deleteQuery);
+		      // execute query
+		      stmnt.executeUpdate();		      
+		      // Message output in case of successful deletion 
+		      String listRemoved = "Data Deleted!";
+		      HttpResponse ListDeleted = new HttpResponse(listRemoved, HttpURLConnection.HTTP_OK);
+		      return ListDeleted;
+		    } catch (Exception e) {
+		      e.printStackTrace();
+		      // InternalError
+		      // output message in case of errors
+		      String listNotFound = "Problems: " + e.getMessage();
+		      HttpResponse ListNotFound = new HttpResponse(listNotFound, HttpURLConnection.HTTP_NOT_FOUND);
+		      return ListNotFound;
+		    }
+		    finally {
+			      // free resources
+			      try {
+			        stmnt.close();
+			        conn.close();
+			      } catch (Exception e) {
+			        e.printStackTrace();
+			        // InternalError
+			        String listNotFound = "Problems: " + e.getMessage();
+			        HttpResponse ListNotFound = new HttpResponse(listNotFound, HttpURLConnection.HTTP_INTERNAL_ERROR);
+			        return ListNotFound;
+			      }
+			    }
+	  }
+  
+ 
 
 
   // //////////////////////////////////////////////////////////////////////////////////////
