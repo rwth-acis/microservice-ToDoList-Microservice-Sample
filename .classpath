@@ -15,8 +15,8 @@
 	<classpathentry kind="lib" path="lib/swagger-jaxrs-1.5.4.jar"/>
 	<classpathentry kind="lib" path="lib/swagger-models-1.5.4.jar"/>
 	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
-	<classpathentry kind="lib" path="lib/las2peer-0.5.2.jar"/>
-	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.5.2.jar"/>
-	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.5.2.jar"/>
+	<classpathentry kind="lib" path="lib/las2peer-0.6.3.jar"/>
+	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.6.3.jar"/>
+	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.6.3.jar"/>
 	<classpathentry kind="output" path="output"/>
 </classpath>
