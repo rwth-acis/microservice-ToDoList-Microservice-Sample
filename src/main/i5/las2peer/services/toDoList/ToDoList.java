@@ -19,6 +19,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.Consumes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.jsonschema.JsonSchema;
 import com.sun.javafx.collections.MappingChange.Map;
 
 import i5.las2peer.api.Service;
@@ -38,9 +39,11 @@ import io.swagger.models.Swagger;
 import io.swagger.util.Json;
 
 import org.glassfish.jersey.server.model.Resource;
+import org.json.simple.JSONArray;
 //import org.apache.commons.lang3.ArrayUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
+import org.json.simple.parser.JSONParser;
 
 
 /**
@@ -106,55 +109,49 @@ public class ToDoList extends RESTService {
 	  @POST
 	  @Path("/")
 	  @Produces(MediaType.TEXT_PLAIN)
-	  @Consumes(MediaType.TEXT_PLAIN)
+	  @Consumes(MediaType.APPLICATION_JSON)
 	  @ApiResponses(value = {
 	       @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "ListSent"),
 	       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
 	  })
 	  @ApiOperation(value = "postList", notes = "")
-	  public Response postList(String listContent) {
-		  {		
-			
-			  String insertQuery = "";
-			 		    Connection conn = null;
-			    PreparedStatement stmnt = null;
-			    // split the message by semicolon since data belongs to two different 
-			    // create two strings: caption and message
-			    String[] str_array = listContent.split(";");
-				  String caption = str_array[0]; 
-				  String message = str_array[1];
-			    		    try {
-			      conn = dbm.getConnection();
-			      // formulate query statement for message input
-			      insertQuery = "INSERT INTO list (ListContent,MessageContent)" + "VALUES ('" + caption + "' , '" + message + "')";
-			      stmnt = conn.prepareStatement(insertQuery);
-			      // execute query 
-			      stmnt.executeUpdate();
-			      // message displayed for successful response
-			      String listCreated = "Data Sent!";
-			      return Response.status(201).entity(listCreated).build();
-			    } catch (Exception e) {
-			      e.printStackTrace();
-			      // InternalError
-			      String error = "Problems: " + e.getMessage();      
-			      return Response.serverError().entity(error).build();
-			    } finally {
-			      // free resources
-			      try {
-			        stmnt.close();
-			        conn.close();
-			      } catch (Exception e) {
-			        e.printStackTrace();
-			        // InternalError
-			        // message displayed in case of errors
-			        String error = "Problems: " + e.getMessage();
-			        return Response.serverError().entity(error).build();
-			      }
-			    }
-			  }
-
+	  public Response postList(String contentString) {
+		  JSONParser parser = new JSONParser();
+		  JSONObject content;  
+		  Connection conn = null;
+		  PreparedStatement stmnt = null;
 		  
-	  }
+		  try {
+			  content = (JSONObject) parser.parse(contentString);
+			  conn = dbm.getConnection();
+			  // formulate query statement for message input
+			  String insertQuery = "INSERT INTO list (ListContent,MessageContent)" + "VALUES (?,?);";
+			  stmnt = conn.prepareStatement(insertQuery);
+			  stmnt.setString(1, (String) content.get("caption"));
+			  stmnt.setString(2, (String) content.get("message"));
+			  // execute query 
+			  stmnt.executeUpdate();
+			  // message displayed for successful response
+			  return Response.status(201).build();
+	    } catch (Exception e) {
+	      e.printStackTrace();
+	      // InternalError
+	      String error = "Problems: " + e.getMessage();      
+	      return Response.serverError().entity(error).build();
+	    } finally {
+	      // free resources
+	      try {
+	        stmnt.close();
+	        conn.close();
+	      } catch (Exception e) {
+	        e.printStackTrace();
+	        // InternalError
+	        // message displayed in case of errors
+	        String error = "Problems: " + e.getMessage();
+	        return Response.serverError().entity(error).build();
+	      }
+	    }	  
+}
 	  
 	 
 	  /**
@@ -166,10 +163,10 @@ public class ToDoList extends RESTService {
 	   * @return HttpResponse
 	   * 
 	   */
-	  @GET
+	  @SuppressWarnings("unchecked")
+	@GET
 	  @Path("/")
-	  @Produces(MediaType.TEXT_PLAIN)
-	  @Consumes(MediaType.TEXT_PLAIN)
+	  @Produces(MediaType.APPLICATION_JSON)
 	  @ApiResponses(value = {
 			  @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "listRetrieved"),
 		       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
@@ -188,34 +185,19 @@ public class ToDoList extends RESTService {
 			      stmnt = conn.prepareStatement(getQuery);
 			      // execute query
 			      ResultSet rs = stmnt.executeQuery();
-			      // after retrieving all the data, it should be cleaned
-			      // seperate all data according to id
-			      // structure all the data properly according to caption and message
-			      rs.last();
-			      int numrows = rs.getRow(); 
-			      rs.beforeFirst();
-			      int[] id = new int[numrows];
-			      String[] ListContent = new String[numrows];
-			      String[] MessageContent = new String[numrows];
-			    	int i = 0; 
-			 		   		     while(rs.next()){	
-			 		   		    	id[i] = rs.getInt("id");
-			    	    ListContent[i] = rs.getString("ListContent");
-			    	    MessageContent[i] = rs.getString("MessageContent");
-			    	     	    i++;
-			   		     } 		  	
-			 		 
-			     rs.close();
-			    String ID =  	Arrays.toString(id);
-			     String AllData =  	Arrays.toString(ListContent);
-			     String Message =  	Arrays.toString(MessageContent);
-			     ID = ID.substring(1, ID.length() - 1);
-			     AllData = AllData.substring(1, AllData.length() - 1);
-			     Message = Message.substring(1, Message.length() - 1);
-	             // create a string where all the data is stored
-			     // comma-seperated string to seperate data for further purposes
-			     String allTogether = ID + "," + AllData + "," + Message ;
-			     return Response.ok(allTogether).build();
+			      
+			      
+			      JSONArray result = new JSONArray();
+			      
+			      while(rs.next()) {
+			    	  JSONObject obj = new JSONObject();
+			    	  obj.put("id", rs.getInt(1));
+			    	  obj.put("caption", rs.getString(2));
+			    	  obj.put("message", rs.getString(3));
+			    	  result.add(obj);
+			      }
+			      
+			      return Response.ok(result.toJSONString()).build();
 			      
 			    } catch (Exception e) {
 			      e.printStackTrace();
@@ -243,54 +225,60 @@ public class ToDoList extends RESTService {
 	  
 	  @PUT
 	  @Path("/{id}")
-	  @Produces(MediaType.TEXT_PLAIN)
-	  @Consumes(MediaType.TEXT_PLAIN)
+	  @Consumes(MediaType.APPLICATION_JSON)
 	  @ApiResponses(value = {
 			  @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "listUpdated"),
-		       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
+		      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "internalError")
 	  })
 	  @ApiOperation(value = "updateData", notes = "")
-	  public Response updateData(@PathParam("id") String id, String UpdateContent ) {
-		  {   
-			  
-			  // seperate the available data in different categories by semicolon-seperated 
-			  String[] str_array = UpdateContent.split(";");
-			  String inputMsg = str_array[0]; 
-			  String message = str_array[1]; 
-			  String DeleteID = str_array[2];
-			  // create connection
-			    Connection conn = null;
-			    PreparedStatement stmnt = null;
-			    PreparedStatement stmnt1 = null;
-
-			    try {
-			      conn = dbm.getConnection();
-			      			  
-					   String getQuery = "";
-					   String Query = "";
-
-				 // formulate query statement for updating caption and message based on id
-			      getQuery = "Update list set ListContent = '" + inputMsg + "' where id = '"+ DeleteID + "';";
-			      Query = "Update list set MessageContent = '" + message + "' where id = '"+ DeleteID + "';";
-	              // execute query
-			      stmnt = conn.prepareStatement(getQuery);
-			       stmnt.executeUpdate();		   		   
-			       stmnt1 = conn.prepareStatement(Query);
-			       stmnt1.executeUpdate();	 
-			       // output message in case of successful update
-			      String updateList = "Message Updated!";
-			      return Response.ok(updateList).build();
-			      
-			    } catch (Exception e) {
-			      e.printStackTrace();
-			      // InternalError
-			      // output message in case of errors
-			      String error = "Problems: " + e.getMessage();
-			      return Response.serverError().entity(error).build();
-			    } 
-			  }
-
+	  public Response updateData(@PathParam("id") int id, String updateContent) {
 		  
+		  
+		    JSONParser parser = new JSONParser();
+		    JSONObject content;
+		    try {
+		    	content = (JSONObject) parser.parse(updateContent);
+	  
+		    	// create connection
+		    	Connection conn = null;
+		    	PreparedStatement stmnt = null;
+	
+		    
+		    	conn = dbm.getConnection();
+		    	
+		    	//Check existence
+		    	stmnt = conn.prepareStatement("SELECT COUNT(*) from list WHERE id = ?");
+		    	stmnt.setInt(1, id);
+		    	ResultSet exists = stmnt.executeQuery();
+		    	exists.first();
+		    	if(exists.getInt(1) == 0){
+		    		return Response.status(404).build();
+		    	}
+	  			  
+		    	// formulate query statement for updating caption and message based on id
+		    	String captionQuery = "Update list set ListContent = ? where id = ?;";
+		    	String messageQuery = "Update list set MessageContent = ? where id = ?;";
+	  
+		    	// execute query1
+		    	stmnt = conn.prepareStatement(captionQuery);
+		    	stmnt.setString(1, (String) content.get("caption"));
+		    	stmnt.setInt(2, id);
+		    	stmnt.executeUpdate();
+	  
+		    	//execute query2
+		    	stmnt = conn.prepareStatement(messageQuery);
+		    	stmnt.setString(1, (String) content.get("message"));
+		    	stmnt.setInt(2, id);
+		    	stmnt.executeUpdate();
+		    	// output message in case of successful update
+		    	return Response.ok().build();
+		    } catch (Exception e) {
+		    	e.printStackTrace();
+		    	// InternalError
+		    	// output message in case of errors
+		    	String error = "Problems: " + e.getMessage();
+		    	return Response.serverError().entity(error).build();
+		    }   
 	  }
 	  /**
 	   * 
@@ -303,32 +291,38 @@ public class ToDoList extends RESTService {
 	   */
 	  
 	  @DELETE
-	  @Path("/")
-	  @Produces(MediaType.TEXT_PLAIN)
-	  @Consumes(MediaType.TEXT_PLAIN)
+	  @Path("/{id}")
 	  @ApiResponses(value = {
 	       @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "ListNotFound"),
 	       @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "ListDeleted"),
 	       @ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "BadList")
 	  })
 	  @ApiOperation(value = "deleteList", notes = "")
-	  public Response deleteList(String DeleteContent) 
+	  public Response deleteList(@PathParam("id") int id) 
 		  {
-			   String deleteQuery = "";
-				  // create connection
 			    Connection conn = null;
 			    PreparedStatement stmnt = null;
 			    try {
-					  // create connection
-			      conn = dbm.getConnection();
-					 // formulate query statement for deleting caption and messages based on id
-			      deleteQuery = "Delete From list Where id = '"+ DeleteContent + "';";
+			    	// create connection
+			    	conn = dbm.getConnection();
+			    	
+			    	
+			    	//Check existence
+			    	stmnt = conn.prepareStatement("SELECT COUNT(*) from list WHERE id = ?");
+			    	stmnt.setInt(1, id);
+			    	ResultSet exists = stmnt.executeQuery();
+			    	exists.first();
+			    	if(exists.getInt(1) == 0){
+			    		return Response.status(404).build();
+			    	}
+			    	
+			    	// formulate query statement for deleting caption and messages based on id
+			    	String deleteQuery = "Delete From list Where id = ?;";
 			      stmnt = conn.prepareStatement(deleteQuery);
+			      stmnt.setInt(1, id);
 			      // execute query
 			      stmnt.executeUpdate();		      
-			      // Message output in case of successful deletion 
-			      String listRemoved = "Data Deleted!";
-			      return Response.ok(listRemoved).build();
+			      return Response.ok().build();
 			    } catch (Exception e) {
 			      e.printStackTrace();
 			      // InternalError
